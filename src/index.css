@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+      ui-sans-serif, sans-serif;
+    @apply bg-slate-950 text-slate-50 antialiased;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
