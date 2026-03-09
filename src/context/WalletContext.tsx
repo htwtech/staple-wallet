@@ -103,10 +103,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setError('Не удалось подключить кошелек')
       }
     },
-    onError: (e: { message?: string }) => {
-      console.error('Privy login error', e)
+    onError: (error) => {
+      console.error('Privy login error', error)
       setStatus('error')
-      setError(e?.message ?? 'Ошибка входа')
+      setError(typeof error === 'string' ? error : 'Ошибка входа')
     },
   }).login
 
