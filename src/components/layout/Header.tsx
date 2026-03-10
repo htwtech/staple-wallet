@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, type Location } from 'react-router-dom'
 
 const routes: Record<string, string> = {
   '/': '',
@@ -9,10 +9,10 @@ const routes: Record<string, string> = {
   '/contacts/new': 'New contact',
 }
 
-export function Header() {
+export function Header({ locationOverride }: { locationOverride?: Location }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const pathname = location.pathname
+  const pathname = locationOverride?.pathname ?? location.pathname
   const isHome = pathname === '/'
   const title = routes[pathname] ?? ''
 

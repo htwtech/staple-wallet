@@ -38,7 +38,7 @@ export function PageTransition({ children, className = '', variant = 'default' }
         }
       : {
           opacity: 0,
-          transform: 'translateY(10px)',
+          transform: 'translateY(6px)',
         }
 
   return (
@@ -48,6 +48,9 @@ export function PageTransition({ children, className = '', variant = 'default' }
       data-page-transition
       style={{
         minHeight: 'inherit',
+        backfaceVisibility: 'hidden',
+        transform: ready ? 'translateZ(0)' : initialStyle.transform,
+        willChange: 'opacity, transform',
         ...initialStyle,
       }}
     >

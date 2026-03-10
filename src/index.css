@@ -114,7 +114,7 @@
 @keyframes pageEnter {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -124,11 +124,55 @@
 @keyframes contentEnter {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes routeEnterForward {
+  from {
+    opacity: 0;
+    transform: translate3d(18px, 0, 0) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes routeExitForward {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(-12px, 0, 0) scale(0.996);
+  }
+}
+
+@keyframes routeEnterBack {
+  from {
+    opacity: 0;
+    transform: translate3d(-18px, 0, 0) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes routeExitBack {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(12px, 0, 0) scale(0.996);
   }
 }
 @keyframes overlayEnter {
@@ -199,6 +243,46 @@
   }
 }
 
+@keyframes onboardingStoryProgress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes onboardingFloatSlow {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes onboardingFloatFast {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -14px, 0) scale(1.04);
+  }
+}
+
+@keyframes onboardingCardAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96) rotateX(10deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateX(0deg);
+  }
+}
+
 /* Уникальное имя и селектор по data-атрибуту, чтобы не перебивалось другими стилями */
 [data-page-transition].page-enter-animation {
   opacity: 0;
@@ -253,4 +337,81 @@
 .transition-dropdown {
   transition: opacity 0.22s cubic-bezier(0.33, 1, 0.68, 1),
     transform 0.22s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.route-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.route-scene {
+  min-height: inherit;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  contain: layout paint style;
+}
+
+.route-scene-exit-forward {
+  pointer-events: none;
+  animation: routeExitForward 140ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.route-scene-enter-forward {
+  animation: routeEnterForward 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.route-scene-exit-back {
+  pointer-events: none;
+  animation: routeExitBack 140ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.route-scene-enter-back {
+  animation: routeEnterBack 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-scene,
+  .route-scene-exit-forward,
+  .route-scene-enter-forward,
+  .route-scene-exit-back,
+  .route-scene-enter-back,
+  .onboarding-story-progress,
+  .onboarding-float-slow,
+  .onboarding-float-fast,
+  .onboarding-card-appear,
+  [data-page-transition].page-enter-animation,
+  [data-page-transition].page-enter-animation-menu,
+  .animate-page-enter,
+  .animate-content-enter,
+  .animate-content-enter-delay-1,
+  .animate-content-enter-delay-2,
+  [data-overlay-enter].overlay-enter-animation,
+  .animate-overlay-enter,
+  [data-modal-enter].modal-enter-animation,
+  .animate-modal-enter {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.onboarding-story-progress {
+  width: 0%;
+  animation-name: onboardingStoryProgress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+.onboarding-float-slow {
+  animation: onboardingFloatSlow 5.6s ease-in-out infinite;
+}
+
+.onboarding-float-fast {
+  animation: onboardingFloatFast 4.6s ease-in-out infinite;
+}
+
+.onboarding-card-appear {
+  opacity: 0;
+  transform-origin: center;
+  animation: onboardingCardAppear 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
