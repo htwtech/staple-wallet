@@ -2,53 +2,49 @@ import { Button } from '../common/Button'
 import { useWallet } from '../../hooks/useWallet'
 
 export function TokenList() {
-  const { balances, isLoadingBalances, refreshBalances } = useWallet()
+  const { usdtBalance, isLoadingBalance, refreshBalance } = useWallet()
+  const hasFunds = Number.parseFloat(usdtBalance) > 0
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+    <div className="rounded-2xl border border-white/[0.06] p-4 [background:var(--color-field)]">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-slate-100">Баланс стейблкойнов</h2>
-          <p className="text-xs text-slate-500">USDC, USDT и другие на текущей сети</p>
+          <h2 className="text-sm font-semibold text-[var(--color-text)]">Stablecoin balance</h2>
+          <p className="text-xs text-[var(--color-text)]/50">USDT on TRON mainnet</p>
         </div>
         <Button
           variant="secondary"
-          loading={isLoadingBalances}
+          loading={isLoadingBalance}
           onClick={() => {
-            void refreshBalances()
+            void refreshBalance()
           }}
           className="h-8 px-3 text-xs"
         >
-          Обновить
+          Refresh
         </Button>
       </div>
 
-      {balances.length === 0 && !isLoadingBalances ? (
-        <p className="text-xs text-slate-500">
-          Балансы ещё не загружены или на кошельке нет средств.
+      {!hasFunds && !isLoadingBalance ? (
+        <p className="text-xs text-[var(--color-text)]/50">
+          Balance not loaded yet or wallet has no USDT.
         </p>
       ) : null}
 
       <div className="space-y-2">
-        {balances.map((b) => (
-          <div
-            key={b.token.symbol}
-            className="flex items-center justify-between rounded-xl border border-slate-800/80 bg-slate-900/80 px-3 py-2"
-          >
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-800 text-xs font-semibold text-slate-100">
-                {b.token.symbol}
-              </div>
-              <div>
-                <div className="text-sm font-medium text-slate-50">{b.token.symbol}</div>
-                <div className="text-[11px] text-slate-500">{b.token.address}</div>
-              </div>
+        <div className="flex items-center justify-between rounded-xl border border-white/[0.06] px-3 py-2 [background:var(--color-bg)]">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl text-xs font-semibold [background:var(--color-button)] [color:var(--color-text)]">
+              USDT
             </div>
-            <div className="text-right text-sm font-medium text-slate-50">
-              {b.valueFormatted}
+            <div>
+              <div className="text-sm font-medium text-[var(--color-text)]">USDT</div>
+              <div className="text-[11px] text-[var(--color-text)]/50">TRON mainnet</div>
             </div>
           </div>
-        ))}
+          <div className="text-right text-sm font-medium text-[var(--color-text)]">
+            {usdtBalance}
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -1,19 +1,256 @@
 @import 'tailwindcss';
 
+/* Gotham: положите файлы в public/fonts/ (Gotham-Book.woff2, Gotham-Medium.woff2, Gotham-Bold.woff2) */
+@font-face {
+  font-family: 'Gotham';
+  src: url('/fonts/Gotham-Book.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Gotham';
+  src: url('/fonts/Gotham-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Gotham';
+  src: url('/fonts/Gotham-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Цветовая схема приложения */
 @layer base {
   :root {
     color-scheme: dark;
+    --color-bg: #18191b;
+    --color-text: #fcfcfc;
+    --color-button: #1a1b1d;
+    --color-field: #1f2025;
+    /* Высота блока адреса с выпадающим меню — фиксирована, чтобы не было скачка при открытии */
+    --address-block-height: 8.5rem;
+    /* Анимации */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out-smooth: cubic-bezier(0.33, 1, 0.68, 1);
+    --duration-page: 320ms;
+    --duration-dropdown: 220ms;
+    --duration-ui: 200ms;
+  }
+  @media (max-height: 600px) {
+    :root {
+      --address-block-height: 7.5rem;
+    }
+  }
+  @media (min-height: 800px) {
+    :root {
+      --address-block-height: 9rem;
+    }
   }
 
   body {
     margin: 0;
     min-height: 100vh;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text',
-      ui-sans-serif, sans-serif;
-    @apply bg-slate-950 text-slate-50 antialiased;
+    font-family: 'Gotham', 'Montserrat', ui-sans-serif, sans-serif;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    @apply antialiased;
   }
 
   #root {
     min-height: 100vh;
   }
+}
+
+/* Liquid glass на основе схемы */
+@layer components {
+  .glass {
+    border-radius: 1rem;
+    border: 1px solid rgb(255 255 255 / 0.06);
+    background-color: var(--color-field);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.2);
+    transition: box-shadow 0.2s var(--ease-out-smooth), border-color 0.2s var(--ease-out-smooth);
+  }
+  .glass-card {
+    border-radius: 1.5rem;
+    border: 1px solid rgb(255 255 255 / 0.06);
+    background-color: var(--color-field);
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.3);
+    transition: box-shadow 0.2s var(--ease-out-smooth), border-color 0.2s var(--ease-out-smooth);
+  }
+  .glass-button {
+    border-radius: 9999px;
+    border: none;
+    background-color: var(--color-button);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.2);
+    transition: background-color 0.2s var(--ease-out-smooth), transform 0.2s var(--ease-out-smooth);
+  }
+  .glass-button:hover {
+    background-color: #252628;
+  }
+  .glass-button:active {
+    transform: scale(0.98);
+  }
+  .glass-input {
+    border-radius: 1rem;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    background-color: var(--color-field);
+    color: var(--color-text);
+    outline: none;
+    transition: border-color 0.2s var(--ease-out-smooth), box-shadow 0.2s var(--ease-out-smooth);
+  }
+  .glass-input::placeholder {
+    color: #94a3b8;
+  }
+  .glass-input:focus {
+    border-color: rgb(255 255 255 / 0.2);
+  }
+}
+
+/* Плавные анимации: ключевые кадры и классы — вне @layer, чтобы гарантированно попадали в сборку */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes contentEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes overlayEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sloganSlideAcross {
+  0% {
+    opacity: 0;
+    transform: translateX(-110%);
+  }
+  14% {
+    opacity: 0.55;
+  }
+  28% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  68% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  86% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(110%);
+  }
+}
+
+@keyframes menuCoverEnter {
+  0% {
+    opacity: 0;
+    transform: translate(-24px, 48px) scale(0.9);
+    transform-origin: left bottom;
+    clip-path: inset(22% 0 0 0 round 2rem);
+    filter: saturate(0.88) blur(1px);
+  }
+  55% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1.01);
+    transform-origin: left bottom;
+    clip-path: inset(0 0 0 0 round 1.5rem);
+    filter: saturate(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+    transform-origin: left bottom;
+    clip-path: inset(0 0 0 0 round 0);
+    filter: saturate(1);
+  }
+}
+
+/* Уникальное имя и селектор по data-атрибуту, чтобы не перебивалось другими стилями */
+[data-page-transition].page-enter-animation {
+  opacity: 0;
+  will-change: opacity, transform;
+  animation: pageEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+[data-page-transition].page-enter-animation-menu {
+  opacity: 0;
+  will-change: opacity, transform, clip-path, filter;
+  animation: menuCoverEnter 1.04s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.animate-page-enter {
+  opacity: 0;
+  will-change: opacity, transform;
+  animation: pageEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-content-enter {
+  opacity: 0;
+  animation: contentEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-content-enter-delay-1 {
+  animation: contentEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.05s forwards;
+  opacity: 0;
+}
+.animate-content-enter-delay-2 {
+  animation: contentEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+  opacity: 0;
+}
+[data-overlay-enter].overlay-enter-animation {
+  opacity: 0;
+  animation: overlayEnter 0.25s ease-out forwards;
+}
+.animate-overlay-enter {
+  opacity: 0;
+  animation: overlayEnter 0.25s ease-out forwards;
+}
+[data-modal-enter].modal-enter-animation {
+  opacity: 0;
+  will-change: opacity, transform;
+  animation: modalSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-modal-enter {
+  opacity: 0;
+  will-change: opacity, transform;
+  animation: modalSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.transition-smooth {
+  transition: opacity 0.2s cubic-bezier(0.33, 1, 0.68, 1),
+    transform 0.2s cubic-bezier(0.33, 1, 0.68, 1);
+}
+.transition-dropdown {
+  transition: opacity 0.22s cubic-bezier(0.33, 1, 0.68, 1),
+    transform 0.22s cubic-bezier(0.33, 1, 0.68, 1);
 }

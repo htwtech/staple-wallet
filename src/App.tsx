@@ -34,15 +34,33 @@ function AppRoutes() {
   )
 }
 
-function App() {
-  return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 text-slate-50">
-        <Header />
-        <main>
+function AppLayout() {
+  const { isAuthenticated } = useWallet()
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+        <main className="min-h-screen">
           <AppRoutes />
         </main>
       </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+      <Header />
+      <main className="overflow-x-hidden">
+        <AppRoutes />
+      </main>
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppLayout />
     </BrowserRouter>
   )
 }

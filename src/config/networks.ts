@@ -1,35 +1,32 @@
-export type NetworkId = 'starknet-sepolia' | 'starknet-mainnet'
+export const TRON_MAINNET = {
+  id: 'TRON',
+  name: 'TRON Mainnet',
+  chainId: Number('0x2b6653dc'),
+  rpcUrl: 'https://api.trongrid.io',
+  explorerAddressUrl: 'https://tronscan.org/#/address',
+  explorerTxUrl: 'https://tronscan.org/#/transaction',
+} as const
 
-export type TokenSymbol = 'USDC' | 'USDT'
+export const USDT_TRON = {
+  symbol: 'USDT',
+  address: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
+  decimals: 6,
+  displayName: 'Tether USD',
+} as const
 
-export type TokenConfig = {
-  symbol: TokenSymbol
-  address: string
-  decimals: number
-}
+export const GASFREE_CHAIN_ID = TRON_MAINNET.chainId
 
-export type NetworkConfig = {
-  id: NetworkId
-  name: string
-  tokens: TokenConfig[]
-}
+export const GASFREE_SERVICE_PROVIDER =
+  import.meta.env.VITE_GASFREE_SERVICE_PROVIDER?.trim() || null
 
-export const NETWORKS: NetworkConfig[] = [
-  {
-    id: 'starknet-sepolia',
-    name: 'StarkNet Sepolia',
-    tokens: [
-      { symbol: 'USDC', address: '0xUSDC_PLACEHOLDER', decimals: 6 },
-      { symbol: 'USDT', address: '0xUSDT_PLACEHOLDER', decimals: 6 },
-    ],
-  },
-  {
-    id: 'starknet-mainnet',
-    name: 'StarkNet Mainnet',
-    tokens: [
-      { symbol: 'USDC', address: '0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8', decimals: 6 },
-      { symbol: 'USDT', address: '0x068f5c6a61780768455de69077e07e89787839bf8166decfbf92b645209c0fb8', decimals: 6 },
-    ],
-  },
-]
+export const GASFREE_SUBMIT_URL =
+  import.meta.env.VITE_GASFREE_SUBMIT_URL?.trim() || null
 
+export const GASFREE_NONCE_URL =
+  import.meta.env.VITE_GASFREE_NONCE_URL?.trim() || null
+
+export const GASFREE_SUBMIT_TOKEN =
+  import.meta.env.VITE_GASFREE_SUBMIT_TOKEN?.trim() || null
+
+export const GASFREE_DEFAULT_MAX_FEE =
+  import.meta.env.VITE_GASFREE_DEFAULT_MAX_FEE?.trim() || '250000'

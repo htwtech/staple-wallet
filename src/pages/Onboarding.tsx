@@ -1,55 +1,66 @@
-import { usePrivy } from '@privy-io/react-auth'
-import { Button } from '../components/common/Button'
 import { useWallet } from '../hooks/useWallet'
 
-export function OnboardingPage() {
-  const { ready: privyReady } = usePrivy()
-  const { status, login, error } = useWallet()
-
-  const isLoading = status === 'connecting'
-  const isDisabled = !privyReady
-
+function VaultLogo() {
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-      <div className="mx-4 w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/70 p-8 shadow-xl shadow-slate-950/60">
-        <div className="mb-6 text-center">
-          <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/10 text-xl font-semibold text-indigo-400">
-            ₮
-          </div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-50">
-            Твой стейблкойн-кошелек
-          </h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Подключи кошелек через starkzap и начни отправлять и получать стейблкойны на StarkNet.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <Button
-            variant="primary"
-            loading={isLoading}
-            disabled={isDisabled}
-            onClick={() => {
-              void login()
-            }}
-            className="w-full"
-          >
-            {!privyReady
-              ? 'Загрузка…'
-              : isLoading
-                ? 'Подключаем кошелек…'
-                : 'Создать / подключить кошелек'}
-          </Button>
-
-          <p className="text-xs text-slate-500">
-            Кошелек создается с помощью account abstraction. Seed-фразы и приватные ключи скрыты за
-            удобным UX.
-          </p>
-
-          {error ? <p className="text-xs text-red-400">{error}</p> : null}
-        </div>
-      </div>
-    </div>
+    <img
+      src="/logoLether_wallet.svg"
+      alt="Lether Wallet"
+      className="mx-auto h-auto w-full max-w-[260px] invert"
+    />
   )
 }
 
+const btn =
+  'flex w-full max-w-[min(100%,20rem)] mx-auto items-center justify-center gap-3 rounded-full border-0 py-3.5 px-5 text-sm font-medium transition active:opacity-80 disabled:opacity-50 [background:var(--color-button)] [color:var(--color-text)]'
+
+export function OnboardingPage() {
+  const { status, login, error } = useWallet()
+  const isLoading = status === 'connecting'
+
+  return (
+    <div className="flex min-h-screen flex-col [background:var(--color-bg)] [color:var(--color-text)]">
+      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-8 pt-12">
+        <div className="mb-10 flex flex-col items-center">
+          <VaultLogo />
+        </div>
+
+        <div className="flex w-full max-w-[min(100%,20rem)] flex-col gap-3">
+          <button
+            type="button"
+            className={btn}
+            disabled={isLoading}
+            onClick={() => void login()}
+          >
+            {isLoading ? 'Logging in…' : 'Log In'}
+          </button>
+        </div>
+
+        {error ? (
+          <p className="mt-4 text-center text-sm text-red-400">{error}</p>
+        ) : null}
+      </div>
+
+      <footer className="flex flex-col items-center gap-1 px-6 pb-10 pt-4 text-center text-xs text-[#8e8e93]">
+        <p>
+          By entering you agree to{' '}
+          <a
+            href="/terms"
+            className="underline hover:opacity-90"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            terms and conditions
+          </a>
+        </p>
+        <a
+          href="/privacy"
+          className="underline hover:opacity-90"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Privacy Policy
+        </a>
+      </footer>
+    </div>
+  )
+}

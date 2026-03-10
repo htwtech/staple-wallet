@@ -4,211 +4,313 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react'
-import { useLogin, usePrivy } from '@privy-io/react-auth'
-import { OnboardStrategy } from 'starkzap'
-import type { NetworkId, TokenConfig } from '../config/networks'
-import { NETWORKS } from '../config/networks'
-import { getStarkzapClient } from '../lib/starkzapClient'
-import type { WalletInterface } from 'starkzap'
+import {
+  buildSignedUsdtTransfer,
+  fetchGasFreeNonce,
+  generateGasFreeAddress,
+  getGasFreeDiagnostics,
+  submitSignedUsdtTransfer,
+  type GasFreeDiagnostics,
+} from '../lib/gasfreeAdapter'
+import {
+  clearWalletSession,
+  createOrRestoreStoredTronWallet,
+  isValidTronAddress,
+  isWalletSessionActive,
+  loadStoredTronWallet,
+  setWalletSession,
+  type StoredTronWallet,
+} from '../lib/tronWallet'
+import { fetchUsdtTransactions, type WalletTransaction } from '../lib/tronTransactions'
+import { formatUsdtAmount, getUsdtBalance, parseUsdtToBaseUnits } from '../lib/tronUsdt'
 
 type WalletStatus = 'idle' | 'connecting' | 'connected' | 'error'
 
-export type TokenBalance = {
-  token: TokenConfig
-  valueFormatted: string
+export type TransferQuote = {
+  amountBaseUnits: string
+  gasFreeAddress: string
+  submitReady: boolean
+  message?: string
 }
 
 type WalletContextValue = {
   status: WalletStatus
   address: string | null
-  currentNetwork: NetworkId
-  balances: TokenBalance[]
-  isLoadingBalances: boolean
+  gasFreeAddress: string | null
+  secretPhrase: string | null
+  usdtBalance: string
+  isLoadingBalance: boolean
+  transactions: WalletTransaction[]
+  isLoadingTransactions: boolean
   error: string | null
+  gasFreeDiagnostics: GasFreeDiagnostics
   login: () => Promise<void>
   logout: () => Promise<void>
-  refreshBalances: () => Promise<void>
-  switchNetwork: (networkId: NetworkId) => void
-  getWallet: () => WalletInterface | null
+  refreshBalance: () => Promise<void>
+  refreshTransactions: () => Promise<void>
+  quoteUsdtTransfer: (params: { amount: number; recipientAddress: string }) => Promise<{
+    success: boolean
+    quote?: TransferQuote
+    message?: string
+  }>
+  sendTransaction: (params: {
+    amount: number
+    recipientAddress: string
+    tokenAddress?: string | null
+  }) => Promise<{ success: boolean; txnId?: string; message?: string }>
 }
 
 const WalletContext = createContext<WalletContextValue | undefined>(undefined)
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? ''
-
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const { user, getAccessToken, ready: privyReady } = usePrivy()
-  const [status, setStatus] = useState<WalletStatus>('idle')
-  const [address, setAddress] = useState<string | null>(null)
-  const [currentNetwork, setCurrentNetwork] = useState<NetworkId>('starknet-mainnet')
-  const [balances, setBalances] = useState<TokenBalance[]>([])
-  const [isLoadingBalances, setIsLoadingBalances] = useState(false)
+  const [wallet, setWallet] = useState<StoredTronWallet | null>(null)
+  const [gasFreeAddress, setGasFreeAddress] = useState<string | null>(null)
+  const [usdtBalance, setUsdtBalance] = useState('0')
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false)
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([])
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState<WalletStatus>('idle')
 
-  const walletRef = useRef<WalletInterface | null>(null)
-  const signerContextRef = useRef<{ walletId: string; publicKey: string; serverUrl: string } | null>(null)
+  const address = wallet?.address ?? null
+  const secretPhrase = wallet?.mnemonic ?? null
+  const gasFreeDiagnostics = useMemo(() => getGasFreeDiagnostics(), [])
+  const missingGasFreeConfigMessage = useMemo(() => {
+    if (gasFreeDiagnostics.missing.length === 0) {
+      return null
+    }
 
-  const networkConfig = useMemo(
-    () => NETWORKS.find((n) => n.id === currentNetwork)!,
-    [currentNetwork],
-  )
+    return `GasFree wallet is not configured yet. Missing: ${gasFreeDiagnostics.missing.join(', ')}`
+  }, [gasFreeDiagnostics])
 
-  const connectWithToken = useCallback(
-    async (accessToken: string) => {
-      const base = API_BASE || (typeof window !== 'undefined' ? window.location.origin : '')
-      const res = await fetch(`${base}/api/signer-context`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to get signer context')
-      }
-      const signerContext = (await res.json()) as {
-        walletId: string
-        publicKey: string
-        serverUrl: string
-      }
-      signerContextRef.current = signerContext
-
-      const sdk = getStarkzapClient({ networkId: currentNetwork })
-      const { wallet } = await sdk.onboard({
-        strategy: OnboardStrategy.Privy,
-        privy: { resolve: () => Promise.resolve(signerContext) },
-      })
-      await wallet.ensureReady({ deploy: 'if_needed' })
-      walletRef.current = wallet
-      setAddress(wallet.address.toString())
-      setStatus('connected')
+  const refreshBalanceForAddress = useCallback(async (walletAddress: string) => {
+    setIsLoadingBalance(true)
+    try {
+      const balance = await getUsdtBalance(walletAddress)
+      setUsdtBalance(formatUsdtAmount(balance))
       setError(null)
-    },
-    [currentNetwork],
-  )
-
-  const handleLoginError = useCallback((error: unknown) => {
-    console.error('Privy login error', error)
-    setStatus('error')
-    setError(error != null ? String(error) : 'Ошибка входа')
+    } catch (e) {
+      console.error(e)
+      setError('Failed to load USDT balance')
+    } finally {
+      setIsLoadingBalance(false)
+    }
   }, [])
 
-  const openLoginModal = useLogin({
-    onComplete: async () => {
-      setStatus('connecting')
-      setError(null)
-      try {
-        const token = await getAccessToken()
-        if (!token) throw new Error('No access token')
-        await connectWithToken(token)
-      } catch (e) {
-        console.error(e)
-        setStatus('error')
-        setError('Не удалось подключить кошелек')
-      }
-    },
-    onError: handleLoginError as (error: import('@privy-io/react-auth').PrivyErrorCode) => void,
-  }).login
+  const refreshTransactionsForAddress = useCallback(async (walletAddress: string) => {
+    setIsLoadingTransactions(true)
+    try {
+      const nextTransactions = await fetchUsdtTransactions(walletAddress)
+      setTransactions(nextTransactions)
+    } catch (e) {
+      console.error(e)
+      setTransactions([])
+    } finally {
+      setIsLoadingTransactions(false)
+    }
+  }, [])
+
+  const bootstrapWallet = useCallback(async () => {
+    const nextWallet = createOrRestoreStoredTronWallet()
+    setWallet(nextWallet)
+    setWalletSession(true)
+    await Promise.all([
+      refreshBalanceForAddress(nextWallet.address),
+      refreshTransactionsForAddress(nextWallet.address),
+    ])
+    setStatus('connected')
+    return nextWallet
+  }, [refreshBalanceForAddress, refreshTransactionsForAddress])
 
   const login = useCallback(async () => {
-    setError(null)
-    if (!privyReady) {
-      setError('Идёт загрузка… Подожди пару секунд и нажми снова.')
-      return
-    }
-    if (!user) {
-      setStatus('connecting')
-      openLoginModal({ loginMethods: ['email', 'google', 'apple', 'twitter'] })
-      return
-    }
     setStatus('connecting')
+    setError(null)
     try {
-      const token = await getAccessToken()
-      if (!token) throw new Error('No access token')
-      await connectWithToken(token)
+      await bootstrapWallet()
     } catch (e) {
       console.error(e)
       setStatus('error')
-      setError('Не удалось подключить кошелек')
+      setError(e instanceof Error ? e.message : 'Failed to create TRON wallet')
     }
-  }, [user, privyReady, openLoginModal, getAccessToken, connectWithToken])
+  }, [bootstrapWallet])
 
   const logout = useCallback(async () => {
-    setStatus('idle')
-    setAddress(null)
-    setBalances([])
+    clearWalletSession()
+    setWallet(null)
+    setGasFreeAddress(null)
+    setUsdtBalance('0')
+    setTransactions([])
     setError(null)
-    walletRef.current = null
-    signerContextRef.current = null
+    setStatus('idle')
   }, [])
 
-  const getWallet = useCallback(() => walletRef.current, [])
+  const refreshBalance = useCallback(async () => {
+    if (!address) return
+    await refreshBalanceForAddress(address)
+  }, [address, refreshBalanceForAddress])
 
-  const refreshBalances = useCallback(async () => {
-    const wallet = walletRef.current
-    if (!wallet || !address) return
+  const refreshTransactions = useCallback(async () => {
+    if (!address) return
+    await refreshTransactionsForAddress(address)
+  }, [address, refreshTransactionsForAddress])
 
-    setIsLoadingBalances(true)
-    setError(null)
-
-    try {
-      const { getPresets } = await import('starkzap')
-      const presets = getPresets(wallet.getChainId())
-      const result: TokenBalance[] = []
-
-      for (const tokenCfg of networkConfig.tokens) {
-        const token = presets[tokenCfg.symbol]
-        if (!token) continue
-        const balance = await wallet.balanceOf(token)
-        result.push({ token: tokenCfg, valueFormatted: balance.toFormatted() })
+  const quoteUsdtTransfer = useCallback(
+    async (params: { amount: number; recipientAddress: string }) => {
+      if (!wallet) {
+        return { success: false, message: 'Wallet not ready' }
       }
-      setBalances(result)
-    } catch (e) {
-      console.error(e)
-      setError('Не удалось загрузить балансы')
-    } finally {
-      setIsLoadingBalances(false)
-    }
-  }, [address, networkConfig.tokens])
 
-  const switchNetwork = useCallback(async (networkId: NetworkId) => {
-    setCurrentNetwork(networkId)
-    setBalances([])
-    const ctx = signerContextRef.current
-    if (!ctx || !address) return
-    try {
-      const sdk = getStarkzapClient({ networkId })
-      const { wallet } = await sdk.onboard({
-        strategy: OnboardStrategy.Privy,
-        privy: { resolve: () => Promise.resolve(ctx) },
+      if (!isValidTronAddress(params.recipientAddress.trim())) {
+        return { success: false, message: 'Enter a valid TRON address' }
+      }
+
+      const amountBaseUnits = parseUsdtToBaseUnits(String(params.amount))
+      if (!amountBaseUnits || amountBaseUnits <= 0n) {
+        return { success: false, message: 'Enter a valid USDT amount' }
+      }
+
+      const submitReady = gasFreeDiagnostics.canSubmitTransfer
+      let nextGasFreeAddress = gasFreeAddress
+
+      if (!nextGasFreeAddress) {
+        try {
+          nextGasFreeAddress = await generateGasFreeAddress(wallet.address)
+        } catch (e) {
+          console.error(e)
+          return {
+            success: false,
+            message:
+              missingGasFreeConfigMessage ??
+              (e instanceof Error ? e.message : 'Failed to prepare gas-free route'),
+          }
+        }
+      }
+
+      return {
+        success: true,
+        quote: {
+          amountBaseUnits: amountBaseUnits.toString(),
+          gasFreeAddress: nextGasFreeAddress,
+          submitReady,
+          message: submitReady
+            ? undefined
+            : missingGasFreeConfigMessage ?? 'GasFree relay not configured yet.',
+        },
+      }
+    },
+    [gasFreeDiagnostics, gasFreeAddress, missingGasFreeConfigMessage, wallet],
+  )
+
+  const sendTransaction = useCallback(
+    async (params: {
+      amount: number
+      recipientAddress: string
+      tokenAddress?: string | null
+    }) => {
+      if (!wallet) return { success: false, message: 'Wallet not ready' }
+
+      if (!isValidTronAddress(params.recipientAddress.trim())) {
+        return { success: false, message: 'Recipient must be a valid TRON address' }
+      }
+
+      const amountBaseUnits = parseUsdtToBaseUnits(String(params.amount))
+      if (!amountBaseUnits || amountBaseUnits <= 0n) {
+        return { success: false, message: 'Enter a valid USDT amount' }
+      }
+
+      if (!gasFreeDiagnostics.canAssembleTransfer) {
+        return {
+          success: false,
+          message: missingGasFreeConfigMessage ?? 'GasFree transfer is not configured yet.',
+        }
+      }
+
+      try {
+        const nonce = await fetchGasFreeNonce(wallet.address)
+        const draft = await buildSignedUsdtTransfer({
+          privateKey: wallet.privateKey,
+          userAddress: wallet.address,
+          recipientAddress: params.recipientAddress.trim(),
+          amountBaseUnits,
+          nonce,
+        })
+        const result = await submitSignedUsdtTransfer(draft)
+        if (result.success) {
+          void refreshBalance()
+          return { success: true, txnId: result.txnId }
+        }
+        return { success: false, message: result.message }
+      } catch (e) {
+        console.error(e)
+        return {
+          success: false,
+          message: e instanceof Error ? e.message : 'Failed to submit gas-free transfer',
+        }
+      }
+    },
+    [gasFreeDiagnostics, missingGasFreeConfigMessage, refreshBalance, wallet],
+  )
+
+  useEffect(() => {
+    if (!address) {
+      setGasFreeAddress(null)
+      return
+    }
+
+    let cancelled = false
+
+    void generateGasFreeAddress(address)
+      .then((nextGasFreeAddress) => {
+        if (!cancelled) {
+          setGasFreeAddress(nextGasFreeAddress)
+        }
       })
-      await wallet.ensureReady({ deploy: 'if_needed' })
-      walletRef.current = wallet
-      setAddress(wallet.address.toString())
-    } catch {
-      walletRef.current = null
-      setAddress(null)
+      .catch((e) => {
+        console.error(e)
+        if (!cancelled) {
+          setGasFreeAddress(null)
+        }
+      })
+
+    return () => {
+      cancelled = true
     }
   }, [address])
 
   useEffect(() => {
-    if (status === 'connected') void refreshBalances()
-  }, [status, refreshBalances])
+    if (!isWalletSessionActive()) return
+
+    const storedWallet = loadStoredTronWallet()
+    if (!storedWallet) return
+
+    setWallet(storedWallet)
+    setStatus('connected')
+    void Promise.all([
+      refreshBalanceForAddress(storedWallet.address),
+      refreshTransactionsForAddress(storedWallet.address),
+    ])
+  }, [refreshBalanceForAddress, refreshTransactionsForAddress])
 
   const value: WalletContextValue = {
     status,
     address,
-    currentNetwork,
-    balances,
-    isLoadingBalances,
+    gasFreeAddress,
+    secretPhrase,
+    usdtBalance,
+    isLoadingBalance,
+    transactions,
+    isLoadingTransactions,
     error,
+    gasFreeDiagnostics,
     login,
     logout,
-    refreshBalances,
-    switchNetwork,
-    getWallet,
+    refreshBalance,
+    refreshTransactions,
+    quoteUsdtTransfer,
+    sendTransaction,
   }
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>
